@@ -1,0 +1,306 @@
+pragma solidity ^0.4.15;
+
+contract ERC20Basic {
+ uint256 public totalSupply;
+ function balanceOf(address who) public constant returns (uint256);
+ function transfer(address to, uint256 value) public returns (bool);
+ event Transfer(address indexed from, address indexed to, uint256 value);
+}
+
+contract ERC20 is ERC20Basic {
+ function allowance(address owner, address spender) public constant returns (uint256);
+ function transferFrom(address from, address to, uint256 value) public returns (bool);
+ function approve(address spender, uint256 value) public returns (bool);
+ event Approval(address indexed owner, address indexed spender, uint256 value);
+}
+
+library SafeMath {
+
+ function mul(uint256 a, uint256 b) internal pure returns (uint256) {
+   uint256 c = a * b;
+   assert(a == 0 || c / a == b);
+   return c;
+ }
+
+ function div(uint256 a, uint256 b) internal pure returns (uint256) {
+   uint256 c = a / b;
+   return c;
+ }
+
+ function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+   assert(b <= a);
+   return a - b;
+ }
+
+ function add(uint256 a, uint256 b) internal pure returns (uint256) {
+   uint256 c = a + b;
+   assert(c >= a);
+   return c;
+ }
+
+}
+
+contract BasicToken is ERC20Basic {
+
+ using SafeMath for uint256;
+
+ mapping(address => uint256) balances;
+
+ function transfer(address _to, uint256 _value) public returns (bool) {
+   balances[msg.sender] = balances[msg.sender].sub(_value);
+   balances[_to] = balances[_to].add(_value);
+   Transfer(msg.sender, _to, _value);
+   return true;
+ }
+
+ function balanceOf(address _owner) public constant returns (uint256 balance) {
+   return balances[_owner];
+ }
+
+}
+
+contract StandardToken is ERC20, BasicToken {
+
+ mapping (address => mapping (address => uint256)) allowed;
+
+ function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
+   var _allowance = allowed[_from][msg.sender];
+
+   balances[_to] = balances[_to].add(_value);
+   balances[_from] = balances[_from].sub(_value);
+   allowed[_from][msg.sender] = _allowance.sub(_value);
+   Transfer(_from, _to, _value);
+   return true;
+ }
+
+ function approve(address _spender, uint256 _value) public returns (bool) {
+
+   require((_value == 0) || (allowed[msg.sender][_spender] == 0));
+
+   allowed[msg.sender][_spender] = _value;
+   Approval(msg.sender, _spender, _value);
+   return true;
+ }
+
+    function allowance(address _owner, address _spender) public constant returns (uint256 remaining) {
+        return allowed[_owner][_spender];
+    }
+
+}
+
+contract Ownable {
+
+    address public owner;
+
+    function Ownable() public {
+        owner = msg.sender;
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner);
+        _;
+    }
+
+    function transferOwnership(address newOwner) public onlyOwner {
+        require(newOwner != address(0));
+        owner = newOwner;
+    }
+
+}
+
+contract MintableToken is StandardToken, Ownable {
+
+ event Mint(address indexed to, uint256 amount);
+
+ event MintFinished();
+
+ bool public mintingFinished = false;
+
+ modifier canMint() {
+   require(!mintingFinished);
+   _;
+ }
+
+ function mint(address _to, uint256 _amount) public onlyOwner canMint returns (bool) {
+    totalSupply = totalSupply.add(_amount);
+    balances[_to] = balances[_to].add(_amount);
+    Mint(_to, _amount);
+    return true;
+ }
+
+ function finishMinting() public onlyOwner returns (bool) {
+   mintingFinished = true;
+   MintFinished();
+   return true;
+ }
+
+}
+
+contract ITEX is MintableToken {
+   string public constant name = "ITEX";
+   string public constant symbol = "ITEX";
+   uint32 public constant decimals = 18;
+}
+
+contract Crowdsale is Ownable {
+    using SafeMath for uint;
+
+    address ownerAddress;
+    address founderAddress;
+    address bountyAddress;
+    address usersAddress;
+    
+    uint commercialTokenLimit;
+    uint preIcoTokenLimit;
+    uint icoTokenLimit;
+    uint headcup;
+    
+    uint commercialStartDate;
+    uint commercialEndDate;
+    uint preIcoStartDate;
+    uint preIcoEndDate;
+    uint icoStartDate;
+    uint icoEndDate;
+    
+    uint public commercialRate;
+    uint public preIcoRate;
+    uint public icoRate;
+    
+    uint founderPercent;
+    uint bountyPercent;
+    uint usersPercent;
+    
+    uint public soldTokenOnCommercial = 0;
+    uint public soldTokenOnPreIco = 0;
+    uint public soldTokenOnIco = 0;
+    uint public soldTokens = 0;
+    bool public ownerReceivedTheFinalTokens = false;
+    bool public ownerReceivedTheBountyAndFounderTokens = false;
+
+    ITEX public token = new ITEX();
+
+    function Crowdsale ()  public payable {
+        ownerAddress = 0x94E082CE214F779Fa2aBbEd5eF989C4b7574D405;
+        founderAddress = 0x6a397009e9D52616826e999A93578F24c8C9dDD5;
+        bountyAddress = 0x16590A1d0440414B9bAfdC141F4044b3B885e49c;
+        usersAddress = 0xf7549c1117F0FbC8Cb0486F479f2de5bb446625F;
+        founderPercent = 7;
+        bountyPercent = 3;
+        usersPercent = 20;
+        commercialRate = 47000 * 1 ether;
+        preIcoRate = 10 * 1 ether;
+        icoRate = 1 * 1 ether;
+        commercialStartDate = 1519092000;
+        commercialEndDate = 1520733600;
+        preIcoStartDate = 1523152800;
+        preIcoEndDate = 1524362400;
+        icoStartDate = 1527818400;
+        icoEndDate = 1530324000;
+        headcup = 800000000 * 1 ether;
+        commercialTokenLimit = 96000000 * 1 ether;
+        preIcoTokenLimit = 64000000 * 1 ether;
+        icoTokenLimit = 400000000 * 1 ether;
+    }
+    
+    modifier isUnderCommercialLimit(uint value) {
+       require((soldTokenOnCommercial + commercialRate.mul(value).div(1 ether)) <= commercialTokenLimit);
+       _;
+    }
+    
+    modifier isUnderPreIcoLimit(uint value) {
+       require((soldTokenOnPreIco + preIcoRate.mul(value).div(1 ether)) <= preIcoTokenLimit);
+       _;
+    }
+    
+    modifier isUnderIcoLimit(uint value) {
+       require((soldTokenOnIco + icoRate.mul(value).div(1 ether)) <= icoTokenLimit);
+       _;
+    }
+    
+    function buyPreIcoTokens(uint value, address sender) private isUnderPreIcoLimit(value) {
+        ownerAddress.transfer(value);
+        uint tokens = preIcoRate.mul(value).div(1 ether);
+        
+        soldTokenOnPreIco += tokens;
+        soldTokens += tokens;
+        token.mint(sender, tokens);
+    }
+    
+    function buyIcoTokens(uint value, address sender) private isUnderIcoLimit(value) {
+        ownerAddress.transfer(value);
+        uint tokens = icoRate.mul(value).div(1 ether);
+        
+        soldTokenOnIco += tokens;
+        soldTokens += tokens;
+        token.mint(sender, tokens);
+    }
+    
+    function buyCommercialTokens(uint value, address sender) private isUnderCommercialLimit(value) {
+        ownerAddress.transfer(value);
+        uint tokens = commercialRate.mul(value).div(1 ether);
+        
+        soldTokenOnCommercial += tokens;
+        soldTokens += tokens;
+        token.mint(sender, tokens);
+    }
+    
+    function finishMinting() public onlyOwner returns (bool) {
+        if (now > icoEndDate && ownerReceivedTheFinalTokens == true) {
+            token.finishMinting();
+            
+            return true;
+        } else {
+            return false;
+        }        
+    }
+    
+    function setCommercialRate(uint rate)  public onlyOwner returns (bool)  {
+        commercialRate = rate * 1 ether;
+        return true;
+    }
+    
+    function setPreIcoRate(uint rate)  public onlyOwner returns (bool)  {
+        preIcoRate = rate * 1 ether;
+        return true;
+    }
+    
+    function setIcoRate(uint rate)  public onlyOwner returns (bool)  {
+        icoRate = rate * 1 ether;
+        return true;
+    }
+    
+    function sendUserFinalTokens() public payable onlyOwner returns (bool)  {
+        if (now > (icoStartDate + 1 years) && ownerReceivedTheFinalTokens == false) {
+            uint usersTokens = soldTokens.div(100).mul(usersPercent);
+            token.mint(usersAddress, usersTokens);
+            ownerReceivedTheFinalTokens = true;
+            return true;
+        } else {
+            return false;
+        }
+    }
+    
+    function sendBountyFounderTokens() public payable onlyOwner returns (bool) {
+        if (now > icoEndDate && ownerReceivedTheBountyAndFounderTokens == false) {
+            uint founderTokens = soldTokens.div(100).mul(founderPercent);
+            uint bountyTokens = soldTokens.div(100).mul(bountyPercent);
+            token.mint(founderAddress, founderTokens);
+            token.mint(bountyAddress, bountyTokens);
+            ownerReceivedTheBountyAndFounderTokens = true;
+            return true;
+        } else {
+            return false;
+        }
+    }
+    
+    function() external payable {
+        if (now >= commercialStartDate && now < commercialEndDate) {
+            buyCommercialTokens(msg.value, msg.sender);
+        } else if (now >= preIcoStartDate && now < preIcoEndDate) {
+            buyPreIcoTokens(msg.value, msg.sender);
+        } else if (now >= icoStartDate && now < icoEndDate) {
+            buyIcoTokens(msg.value, msg.sender);
+        }
+    }
+
+}
